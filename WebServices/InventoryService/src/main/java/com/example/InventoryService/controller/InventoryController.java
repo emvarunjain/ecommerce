@@ -22,15 +22,9 @@ public class InventoryController {
         return "Inventory placed successfully";
     }
 
-    @GetMapping("/{skuCode}")
-    @ResponseStatus(code = HttpStatus.OK)
-    public boolean isInStock(@PathVariable String skuCode) {
-        return inventoryService.isInStock(skuCode);
-    }
-
     @GetMapping
     @ResponseStatus(code = HttpStatus.OK)
-    public List<InventoryDto> getInventory() {
-        return inventoryService.getInventory();
+    public List<InventoryDto> getInventory(@RequestParam("skuCode") List<String> skuCodes) {
+        return inventoryService.getInventory(skuCodes);
     }
 }

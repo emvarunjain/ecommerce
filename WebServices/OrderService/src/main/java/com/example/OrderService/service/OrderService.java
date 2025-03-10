@@ -1,41 +1,64 @@
 package com.example.OrderService.service;
 
+import com.example.OrderService.dto.InventoryDto;
 import com.example.OrderService.dto.OrderDto;
 import com.example.OrderService.dto.OrderLineItemDto;
 import com.example.OrderService.model.Order;
 import com.example.OrderService.model.OrderLineItem;
 import com.example.OrderService.repository.OrderRepository;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.reactive.function.client.WebClient;
 
+import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
+@RequiredArgsConstructor
 @Slf4j
 @Transactional
 public class OrderService {
 
-    @Autowired
-    private OrderRepository OrderRepository;
+    private final OrderRepository orderRepository;
+    private final WebClient webClient;
 
     public void placeOrder(OrderDto orderDto) {
         List<OrderLineItem> orderLineItems = orderDto.getLineItems().stream().map(this::maptoOrderLineItem).toList();
+        List<String> skuCodes = orderLineItems.stream().map(OrderLineItem::getSkuCode).toList();
         Order order = Order.builder()
                 .lineItems(orderLineItems)
                 .build();
-        OrderRepository.save(order);
+        InventoryDto[] inventoryDtos = webClient.get().uri("http://localhost:8082/api/inventory", 
+                        uriBuilder -> uriBuilder.queryParam("skuCode", skuCodes).build())
+                .retrieve()
+                .bodyToMono(InventoryDto[].class)
+                .block();
+        boolean allInStock = false;
+        if (inventoryDtos != null && inventoryDtos.length > 0) {
+            Map<String, Integer> inventoryMap = Arrays.stream(inventoryDtos)
+                    .collect(Collectors.toMap(InventoryDto::getSkuCode, InventoryDto::getQuantity));
+            allInStock = orderLineItems.stream()
+                    .allMatch(item -> inventoryMap.getOrDefault(item.getSkuCode(), 0) >= item.getQuantity());
+        }
+        if (!allInStock) {
+            throw new RuntimeException("Inventory is not available for every SKU");
+        }
+
+        orderRepository.save(order);
         log.info("Order {} created successfully", order.getId());
     }
 
     public List<OrderDto> getAllOrders() {
-        List<Order> orders = OrderRepository.findAll();
+        List<Order> orders = orderRepository.findAll();
         return orders.stream().map(this::maptoOrderDto).toList();
     }
 
     public void deleteAllOrders() {
-        OrderRepository.deleteAll();
+        orderRepository.deleteAll();
     }
 
     private OrderDto maptoOrderDto(Order order) {
@@ -58,12 +81,12 @@ public class OrderService {
         Order order = Order.builder()
                 .lineItems(orderLineItems)
                 .build();
-        OrderRepository.save(order);
+        orderRepository.save(order);
         log.info("Order {} updated successfully", order.getId());
     }
 
     public void deleteOrder(Long id) {
-        OrderRepository.deleteById(id);
+        orderRepository.deleteById(id);
         log.info("Order {} deleted successfully", id);
     }
 }

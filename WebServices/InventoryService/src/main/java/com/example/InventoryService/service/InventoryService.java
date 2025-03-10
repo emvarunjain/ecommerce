@@ -18,8 +18,13 @@ public class InventoryService {
     private InventoryRepository inventoryRepository;
 
     @Transactional(readOnly = true)
-    public boolean isInStock(String skuCode) {
-        return inventoryRepository.findBySkuCode(skuCode).isPresent();
+    public List<InventoryDto> getInventory(List<String> skuCodes) {
+        return inventoryRepository.findBySkuCodeIn(skuCodes)
+                .stream().map(inventory ->
+                    InventoryDto.builder()
+                            .quantity(inventory.getQuantity())
+                            .skuCode(inventory.getSkuCode())
+                            .build()).toList();
     }
 
     public void addInventory(InventoryDto inventoryDto) {
