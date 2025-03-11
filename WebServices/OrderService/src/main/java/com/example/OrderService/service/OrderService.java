@@ -24,7 +24,7 @@ import java.util.stream.Collectors;
 public class OrderService {
 
     private final OrderRepository orderRepository;
-    private final WebClient webClient;
+    private final WebClient.Builder lBWebClientBuilder;
 
     public void placeOrder(OrderDto orderDto) {
         List<OrderLineItem> orderLineItems = orderDto.getLineItems().stream().map(this::maptoOrderLineItem).toList();
@@ -32,7 +32,7 @@ public class OrderService {
         Order order = Order.builder()
                 .lineItems(orderLineItems)
                 .build();
-        InventoryDto[] inventoryDtos = webClient.get().uri("http://localhost:8082/api/inventory", 
+        InventoryDto[] inventoryDtos = lBWebClientBuilder.build().get().uri("http://inventoryservice/api/inventory",
                         uriBuilder -> uriBuilder.queryParam("skuCode", skuCodes).build())
                 .retrieve()
                 .bodyToMono(InventoryDto[].class)
