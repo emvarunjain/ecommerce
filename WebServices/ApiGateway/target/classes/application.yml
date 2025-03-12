@@ -1,0 +1,40 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: ApiGateway
+  cloud:
+    gateway:
+      routes:
+        - id: ProductService
+          uri: lb://ProductService
+          predicates:
+            - Path=/api/product/**
+          filters:
+            # Single quoted string to avoid special char escaping issues
+            - 'RewritePath=^/api/product(?<segment>.*), /${segment}'
+        - id: OrderService
+          uri: lb://OrderService
+          predicates:
+            - Path=/api/order/**
+          filters:
+            - 'RewritePath=^/api/order(?<segment>.*), /${segment}'
+        - id: InventoryService
+          uri: lb://InventoryService
+          predicates:
+            - Path=/api/inventory/**
+          filters:
+            - 'RewritePath=^/api/inventory(?<segment>.*), /${segment}'
+
+# Logging levels
+logging:
+  level:
+    root: info
+    org.springframework.cloud.gateway.route.RouteDefinitionLocator: info
+    org.springframework.cloud.gateway: trace
+
+eureka:
+  client:
+    service-url:
+      defaultZone: "http://localhost:8761/eureka"
